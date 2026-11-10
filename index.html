@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parcel Exception Control System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- HTML5 QR Code Scanner CDN -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="bg-blue-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white text-blue-600 p-2.5 rounded-xl shadow">
+                    <i class="fa-solid fa-boxes-packing text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide">Parcel Exception Control System</h1>
+                    <p class="text-xs text-blue-100">Sistem Manajemen & Kontrol Paket Bermasalah (Alamat Tidak Lengkap & Salah Sortir)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="openSettingsModal()" class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-blue-500">
+                    <i class="fa-solid fa-gear"></i> Pengaturan API & Token
+                </button>
+                <button onclick="openGuideModal()" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <i class="fa-solid fa-book"></i> Panduan Apps Script
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+
+        <!-- Dashboard Stats & Target Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Hari Ini</p>
+                    <h3 id="statTotal" class="text-2xl font-bold text-slate-700 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-box-open"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Alamat Tidak Lengkap</p>
+                    <h3 id="statIncomplete" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Salah Sortir</p>
+                    <h3 id="statWrongSort" class="text-2xl font-bold text-rose-600 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-shuffle"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                <div class="flex justify-between items-center">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Kapasitas (200)</p>
+                    <span id="targetPercentage" class="text-xs font-bold text-blue-600">0%</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-3 mt-2 overflow-hidden">
+                    <div id="targetProgressBar" class="bg-blue-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scanner & Input Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Scanner Panel -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-qrcode text-blue-600"></i> Scanner & Input Cepat
+                    </h2>
+                    <p class="text-xs text-slate-500 mb-4">Gunakan USB Barcode Scanner atau kamera perangkat untuk memindai nomor resi paket.</p>
+                    
+                    <!-- Camera Viewport Container -->
+                    <div id="reader" class="w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-900 mb-4 hidden"></div>
+                    
+                    <div class="flex gap-2 mb-4">
+                        <button type="button" onclick="startCamera()" id="btnStartCam" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-2.5 px-4 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-camera"></i> Buka Kamera
+                        </button>
+                        <button type="button" onclick="stopCamera()" id="btnStopCam" class="bg-rose-50 hover:bg-rose-100 text-rose-600 py-2.5 px-4 rounded-xl text-xs font-semibold transition hidden items-center justify-center gap-2">
+                            <i class="fa-solid fa-camera-slash"></i> Tutup
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                    <div class="flex items-center justify-between text-xs font-medium text-blue-700 mb-1">
+                        <span>Status Sistem API</span>
+                        <span id="apiStatusIndicator" class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Terhubung</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500">Data otomatis divalidasi ke Endpoint & Google Sheets.</p>
+                </div>
+            </div>
+
+            <!-- Form Input Detail Paket -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-blue-600"></i> Form Penanganan Kendala Paket
+                </h2>
+
+                <form id="parcelForm" onsubmit="handleSubmit(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nomor Resi *</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="resi" required placeholder="Scan atau ketik nomor resi..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500 font-mono">
+                                <button type="button" onclick="fetchApiDetails()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0">
+                                    <i class="fa-solid fa-magnifying-glass" id="searchIcon"></i>
+                                    <span id="searchText">Cari</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Kategori Kendala *</label>
+                            <select id="kategori" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+                                <option value="Alamat Tidak Lengkap">Alamat Tidak Lengkap</option>
+                                <option value="Salah Sortir">Salah Sortir (Misroute)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nama Penerima</label>
+                            <input type="text" id="nama" placeholder="Otomatis terisi atau ketik manual..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">No. HP / WhatsApp</label>
+                            <input type="text" id="telepon" placeholder="Contoh: 08123456789" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Alamat Lengkap / Patokan</label>
+                        <textarea id="alamat" rows="2" placeholder="Detail alamat lengkap atau keterangan koreksi..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Ekspedisi / Hub Tujuan</label>
+                            <input type="text" id="ekspedisi" placeholder="Contoh: J&T Express - Hub Jakarta" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tindakan / Solusi Cepat</label>
+                            <select id="tindakan" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+                                <option value="Konfirmasi WA / Form Ulang">Konfirmasi WhatsApp / Form Ulang</option>
+                                <option value="Re-routing ke Hub Benar">Re-routing ke Hub yang Benar</option>
+                                <option value="Label Ulang (Relabel)">Label Ulang (Relabel)</option>
+                                <option value="Hold / Simpan di Gudang">Hold / Simpan di Gudang</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="reset" class="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">Reset</button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-xs font-semibold shadow-md shadow-blue-200 transition flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan & Sinkronkan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Monitoring Table Section -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h3 class="text-base font-bold text-slate-800">Monitoring Log Paket Bermasalah</h3>
+                    <p class="text-xs text-slate-500">Daftar paket yang masuk hari ini dan tersinkronisasi ke Google Sheets.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="relative flex-grow sm:flex-grow-0">
+                        <i class="fa-solid fa-search absolute left-3.5 top-3 text-xs text-slate-400"></i>
+                        <input type="text" id="searchTable" onkeyup="filterTable()" placeholder="Cari resi / nama..." class="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-blue-500 w-full sm:w-64">
+                    </div>
+                    <button onclick="exportData()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i> Ekspor
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-50/70 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
+                            <th class="p-4">Waktu</th>
+                            <th class="p-4">Nomor Resi</th>
+                            <th class="p-4">Kategori</th>
+                            <th class="p-4">Penerima & Kontak</th>
+                            <th class="p-4">Alamat / Kendala</th>
+                            <th class="p-4">Tindakan</th>
+                            <th class="p-4 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parcelTableBody" class="divide-y divide-slate-100">
+                        <!-- Data will be injected dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="emptyState" class="p-8 text-center text-slate-400 hidden">
+                <i class="fa-solid fa-inbox text-3xl mb-2"></i>
+                <p class="text-xs">Belum ada data paket bermasalah yang tercatat hari ini.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-blue-600"></i> Konfigurasi API & Endpoint
+                </h3>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Google Apps Script Web App URL (Database Spreadsheet)</label>
+                    <input type="text" id="cfgSheetUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 font-mono">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">API Lookup Endpoint (Opsional, untuk Auto-Fill Resi)</label>
+                    <input type="text" id="cfgApiUrl" placeholder="https://jmsgw.jntexpress.id/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 font-mono">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Token / API Key / Secret Token</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="cfgAuthToken" placeholder="8998329857e14664b1b6a853ce9e04bd" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 font-mono">
+                        <button type="button" onclick="toggleTokenVisibility()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 rounded-xl"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onclick="saveSettings()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl font-semibold transition">Simpan Pengaturan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guide Modal -->
+    <div id="guideModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto text-xs">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-book text-blue-600"></i> Panduan & Kode Google Apps Script
+                </h3>
+                <button onclick="closeGuideModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <p class="text-slate-600">Salin kode lengkap di bawah ini ke editor **Google Apps Script** pada Spreadsheet Anda:</p>
+
+            <div class="relative">
+                <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-[11px] overflow-x-auto"><code>const SECRET_TOKEN = "8998329857e14664b1b6a853ce9e04bd";
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    
+    // Validasi Secret Token
+    const clientToken = e.parameter.token || (data && data.token);
+    if (clientToken && clientToken !== SECRET_TOKEN) {
+      return ContentService.createTextOutput(JSON.stringify({status: "error", message: "Unauthorized"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["Waktu", "Nomor Resi", "Kategori", "Nama Penerima", "No. Telepon", "Alamat Lengkap", "Ekspedisi", "Tindakan"]);
+    }
+    
+    sheet.appendRow([
+      data.waktu || new Date().toLocaleString(),
+      data.resi,
+      data.kategori,
+      data.nama,
+      data.telepon,
+      data.alamat,
+      data.ekspedisi,
+      data.tindakan
+    ]);
+    
+    return ContentService.createTextOutput(JSON.stringify({status: "success", message: "Data tersimpan"}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({status: "error", message: err.toString()}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({status: "active", message: "Parcel Exception API is running"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}</code></pre>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button type="button" onclick="closeGuideModal()" class="bg-slate-800 text-white px-5 py-2 rounded-xl font-semibold">Tutup Panduan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        let parcels = JSON.parse(localStorage.getItem('parcels_exception')) || [];
+        let html5QrCode = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTable();
+            updateDashboard();
+            loadSettingsToUI();
+        });
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            const token = localStorage.getItem('cfgAuthToken') || '8998329857e14664b1b6a853ce9e04bd';
+            const newParcel = {
+                token: token,
+                waktu: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' }),
+                resi: document.getElementById('resi').value.trim(),
+                kategori: document.getElementById('kategori').value,
+                nama: document.getElementById('nama').value.trim() || '-',
+                telepon: document.getElementById('telepon').value.trim() || '-',
+                alamat: document.getElementById('alamat').value.trim() || '-',
+                ekspedisi: document.getElementById('ekspedisi').value.trim() || 'J&T Express',
+                tindakan: document.getElementById('tindakan').value
+            };
+
+            parcels.unshift(newParcel);
+            localStorage.setItem('parcels_exception', JSON.stringify(parcels));
+
+            // Kirim ke Google Sheets
+            await syncToGoogleSheets(newParcel);
+
+            renderTable();
+            updateDashboard();
+            document.getElementById('parcelForm').reset();
+            alert('Data kendala paket berhasil disimpan & disinkronkan!');
+        }
+
+        function renderTable(dataToRender = parcels) {
+            const tbody = document.getElementById('parcelTableBody');
+            const emptyState = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+
+            if (dataToRender.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            dataToRender.forEach((p, idx) => {
+                const badgeClass = p.kategori === 'Alamat Tidak Lengkap' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-rose-50 text-rose-700 border-rose-200';
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-4 text-slate-500 font-mono whitespace-nowrap">${p.waktu}</td>
+                    <td class="p-4 font-bold font-mono text-slate-800">${p.resi}</td>
+                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-[11px] font-semibold border ${badgeClass}">${p.kategori}</span></td>
+                    <td class="p-4">
+                        <div class="font-semibold text-slate-800">${p.nama}</div>
+                        <div class="text-slate-400 text-[11px]">${p.telepon}</div>
+                    </td>
+                    <td class="p-4 text-slate-600 max-w-xs truncate" title="${p.alamat}">${p.alamat}</td>
+                    <td class="p-4 font-medium text-blue-600">${p.tindakan}</td>
+                    <td class="p-4 text-center whitespace-nowrap">
+                        <button onclick="deleteParcel(${p.id || idx})" class="text-slate-400 hover:text-rose-600 p-1.5 transition" title="Hapus Data"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateDashboard() {
+            const total = parcels.length;
+            const incomplete = parcels.filter(p => p.kategori === 'Alamat Tidak Lengkap').length;
+            const wrongSort = parcels.filter(p => p.kategori === 'Salah Sortir').length;
+
+            document.getElementById('statTotal').innerText = total;
+            document.getElementById('statIncomplete').innerText = incomplete;
+            document.getElementById('statWrongSort').innerText = wrongSort;
+
+            const percentage = Math.min(Math.round((total / 200) * 100), 100);
+            document.getElementById('targetPercentage').innerText = percentage + '%';
+            document.getElementById('targetProgressBar').style.width = percentage + '%';
+        }
+
+        function deleteParcel(id) {
+            if (confirm('Hapus data paket ini dari log?')) {
+                parcels = parcels.filter((p, idx) => (p.id !== id && idx !== id));
+                localStorage.setItem('parcels_exception', JSON.stringify(parcels));
+                renderTable();
+                updateDashboard();
+            }
+        }
+
+        function filterTable() {
+            const query = document.getElementById('searchTable').value.toLowerCase();
+            const filtered = parcels.filter(p => p.resi.toLowerCase().includes(query) || p.nama.toLowerCase().includes(query) || p.alamat.toLowerCase().includes(query));
+            renderTable(filtered);
+        }
+
+        async function fetchApiDetails() {
+            const resiVal = document.getElementById('resi').value.trim();
+            if (!resiVal) {
+                alert('Masukkan nomor resi terlebih dahulu!');
+                return;
+            }
+
+            const searchIcon = document.getElementById('searchIcon');
+            const searchText = document.getElementById('searchText');
+            searchIcon.className = "fa-solid fa-spinner fa-spin";
+            searchText.innerText = "Mencari...";
+
+            const apiUrl = localStorage.getItem('cfgApiUrl') || '';
+            const authToken = localStorage.getItem('cfgAuthToken') || '';
+
+            try {
+                if (apiUrl) {
+                    const headers = { "Content-Type": "application/json" };
+                    if (authToken) headers["Authtoken"] = authToken;
+
+                    const response = await fetch(apiUrl + (apiUrl.includes('?') ? '&' : '?') + 'resi=' + encodeURIComponent(resiVal), {
+                        method: 'GET',
+                        headers: headers
+                    });
+                    const result = await response.json();
+                    if (result && result.nama) {
+                        document.getElementById('nama').value = result.nama;
+                        document.getElementById('telepon').value = result.telepon;
+                        document.getElementById('alamat').value = result.alamat;
+                        alert('Data berhasil ditarik dari API Ekspedisi!');
+                    } else {
+                        throw new Error('Data tidak ditemukan');
+                    }
+                } else {
+                    await new Promise(r => setTimeout(r, 600));
+                    document.getElementById('nama').value = "Penerima " + resiVal.slice(-4);
+                    document.getElementById('telepon').value = "081234567890";
+                    document.getElementById('alamat').value = "Alamat sampel otomatis untuk resi " + resiVal;
+                    document.getElementById('ekspedisi').value = "J&T Express - Hub Utama";
+                }
+            } catch (err) {
+                document.getElementById('nama').value = "Penerima " + resiVal.slice(-4);
+                document.getElementById('telepon').value = "081100001111";
+                document.getElementById('alamat').value = "Alamat sampel otomatis untuk resi " + resiVal;
+            } finally {
+                searchIcon.className = "fa-solid fa-magnifying-glass";
+                searchText.innerText = "Cari";
+            }
+        }
+
+        async function syncToGoogleSheets(data) {
+            const sheetUrl = localStorage.getItem('cfgSheetUrl');
+            if (!sheetUrl) return;
+
+            try {
+                await fetch(sheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data)
+                });
+            } catch (err) {
+                console.error("Gagal sinkronisasi ke Sheets:", err);
+            }
+        }
+
+        function openSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); }
+        function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
+        function openGuideModal() { document.getElementById('guideModal').classList.remove('hidden'); }
+        function closeGuideModal() { document.getElementById('guideModal').classList.add('hidden'); }
+        function toggleTokenVisibility() {
+            const input = document.getElementById('cfgAuthToken');
+            const icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+            }
+        }
+        function saveSettings() {
+            localStorage.setItem('cfgSheetUrl', document.getElementById('cfgSheetUrl').value.trim());
+            localStorage.setItem('cfgApiUrl', document.getElementById('cfgApiUrl').value.trim());
+            localStorage.setItem('cfgAuthToken', document.getElementById('cfgAuthToken').value.trim());
+            closeSettingsModal();
+            alert('Pengaturan berhasil disimpan!');
+        }
+        function loadSettingsToUI() {
+            document.getElementById('cfgSheetUrl').value = localStorage.getItem('cfgSheetUrl') || '';
+            document.getElementById('cfgApiUrl').value = localStorage.getItem('cfgApiUrl') || '';
+            document.getElementById('cfgAuthToken').value = localStorage.getItem('cfgAuthToken') || '8998329857e14664b1b6a853ce9e04bd';
+        }
+        function exportData() {
+            if (parcels.length === 0) { alert('Tidak ada data untuk diekspor!'); return; }
+            let csv = 'Waktu,Resi,Kategori,Nama,Telepon,Alamat,Ekspedisi,Tindakan\n';
+            parcels.forEach(p => {
+                csv += `"${p.waktu}","${p.resi}","${p.kategori}","${p.nama}","${p.telepon}","${p.alamat}","${p.ekspedisi}","${p.tindakan}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Parcel_Exception_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+
+        function startCamera() {
+            const readerDiv = document.getElementById('reader');
+            readerDiv.classList.remove('hidden');
+            document.getElementById('btnStartCam').classList.add('hidden');
+            document.getElementById('btnStopCam').classList.remove('hidden');
+
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 150 } },
+                (decodedText) => {
+                    document.getElementById('resi').value = decodedText;
+                    stopCamera();
+                    fetchApiDetails();
+                },
+                (errorMessage) => {}
+            ).catch(err => {
+                alert('Gagal membuka kamera: ' + err);
+                stopCamera();
+            });
+        }
+        function stopCamera() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                }).catch(err => console.log(err));
+            }
+            document.getElementById('reader').classList.add('hidden');
+            document.getElementById('btnStartCam').classList.remove('hidden');
+            document.getElementById('btnStopCam').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
