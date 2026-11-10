@@ -424,55 +424,60 @@ function doGet(e) {
         }
 
         async function fetchApiDetails() {
-            const resiVal = document.getElementById('resi').value.trim();
-            if (!resiVal) {
-                alert('Masukkan nomor resi terlebih dahulu!');
-                return;
-            }
+    const resiVal = document.getElementById('resi').value.trim();
+    if (!resiVal) {
+        alert('Masukkan nomor resi terlebih dahulu!');
+        return;
+    }
 
-            const searchIcon = document.getElementById('searchIcon');
-            const searchText = document.getElementById('searchText');
-            searchIcon.className = "fa-solid fa-spinner fa-spin";
-            searchText.innerText = "Mencari...";
+    const searchIcon = document.getElementById('searchIcon');
+    const searchText = document.getElementById('searchText');
+    searchIcon.className = "fa-solid fa-spinner fa-spin";
+    searchText.innerText = "Mencari...";
 
-            const apiUrl = localStorage.getItem('cfgApiUrl') || '';
-            const authToken = localStorage.getItem('cfgAuthToken') || '';
+    const apiUrl = localStorage.getItem('cfgApiUrl') || '';
+    const authToken = localStorage.getItem('cfgAuthToken') || '';
 
-            try {
-                if (apiUrl) {
-                    const headers = { "Content-Type": "application/json" };
-                    if (authToken) headers["Authtoken"] = authToken;
-
-                    const response = await fetch(apiUrl + (apiUrl.includes('?') ? '&' : '?') + 'resi=' + encodeURIComponent(resiVal), {
-                        method: 'GET',
-                        headers: headers
-                    });
-                    const result = await response.json();
-                    if (result && result.nama) {
-                        document.getElementById('nama').value = result.nama;
-                        document.getElementById('telepon').value = result.telepon;
-                        document.getElementById('alamat').value = result.alamat;
-                        alert('Data berhasil ditarik dari API Ekspedisi!');
-                    } else {
-                        throw new Error('Data tidak ditemukan');
-                    }
-                } else {
-                    await new Promise(r => setTimeout(r, 600));
-                    document.getElementById('nama').value = "Penerima " + resiVal.slice(-4);
-                    document.getElementById('telepon').value = "081234567890";
-                    document.getElementById('alamat').value = "Alamat sampel otomatis untuk resi " + resiVal;
-                    document.getElementById('ekspedisi').value = "J&T Express - Hub Utama";
-                }
-            } catch (err) {
-                document.getElementById('nama').value = "Penerima " + resiVal.slice(-4);
-                document.getElementById('telepon').value = "081100001111";
-                document.getElementById('alamat').value = "Alamat sampel otomatis untuk resi " + resiVal;
-            } finally {
-                searchIcon.className = "fa-solid fa-magnifying-glass";
-                searchText.innerText = "Cari";
-            }
+    try {
+        if (!apiUrl) {
+            alert('URL API Ekspedisi belum diatur di menu Pengaturan!');
+            return;
         }
 
+        // Menyiapkan header (jika API butuh token autentikasi)
+        const headers = { "Content-Type": "application/json" };
+        if (authToken) {
+            headers["Authorization"] = "Bearer " + authToken; // Sesuaikan dengan format header API Anda (misal: "Authtoken" atau "Bearer")
+        }
+
+        // Melakukan request GET ke API asli
+        const response = await fetch(apiUrl + (apiUrl.includes('?') ? '&' : '?') + 'resi=' + encodeURIComponent(resiVal), {
+            method: 'GET',
+            headers: headers
+        });
+
+        const result = await response.json();
+
+        // --- SESUAIKAN BAGIAN INI DENGAN FORMAT JSON DARI API ANDA ---
+        // Contoh jika API mengembalikan struktur: { data: { receiver_name: "...", phone: "...", address: "..." } }
+        if (result && (result.nama || result.receiver_name)) {
+            document.getElementById('nama').value = result.nama || result.receiver_name || '';
+            document.getElementById('telepon').value = result.telepon || result.phone || '';
+            document.getElementById('alamat').value = result.alamat || result.address || '';
+            document.getElementById('ekspedisi').value = result.ekspedisi || result.courier || 'Ekspedisi Terkait';
+            
+            alert('Data resi berhasil ditarik dari API asli!');
+        } else {
+            throw new Error('Resi tidak ditemukan di server ekspedisi.');
+        }
+
+    } catch (err) {
+        alert('Gagal mengambil data dari API: ' + err.message);
+    } finally {
+        searchIcon.className = "fa-solid fa-magnifying-glass";
+        searchText.innerText = "Cari";
+    }
+}
         async function syncToGoogleSheets(data) {
             const sheetUrl = localStorage.getItem('cfgSheetUrl');
             if (!sheetUrl) return;
